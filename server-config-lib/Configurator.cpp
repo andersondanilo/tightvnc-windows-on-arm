@@ -25,7 +25,6 @@
 #include "win-system/Environment.h"
 #include "wsconfig-lib/TvnLogFilename.h"
 #include "config-lib/RegistrySettingsManager.h"
-#include "config-lib/IniFileSettingsManager.h"
 
 #include "win-system/Registry.h"
 #include "win-system/RegistryKey.h"
@@ -49,13 +48,6 @@ Configurator::Configurator(bool isConfiguringService)
     m_regSA = new RegistrySecurityAttributes();
   } catch (...) {
     // TODO: Place exception handler here.
-  }
-  //检测是否有INI配置文件
-  GetModuleFileName(NULL, ConfigFile, MAX_PATH);
-  size_t n = lstrlen(ConfigFile);
-  lstrcpyn(&ConfigFile[n - 3], L"ini", 4);
-  if (GetFileAttributes(ConfigFile) == INVALID_FILE_ATTRIBUTES) {
-	  ConfigFile[0] = 0;
   }
 }
 
@@ -105,18 +97,10 @@ bool Configurator::load(bool forService)
   if (forService && m_regSA != 0) {
     sa = m_regSA->getServiceSA();
   }
-
   RegistrySettingsManager sm(rootKey, RegistryPaths::SERVER_PATH, sa);
+
   isOk = load(&sm);
 
-  if (ConfigFile[0] > 0) {
-	  IniFileSettingsManager sm(ConfigFile, L"server");
-	  isOk = load(&sm);
-  }
-
-  //IniFileSettingsManager sm(L".\\tvnserver.ini",L"server");
-  //RegistrySettingsManager sm(rootKey, RegistryPaths::SERVER_PATH, sa);
-  
   notifyReload();
 
   return isOk;
@@ -132,14 +116,9 @@ bool Configurator::save(bool forService)
   if (forService && m_regSA != 0) {
     sa = m_regSA->getServiceSA();
   }
-  if (ConfigFile[0] > 0) {
-	  IniFileSettingsManager sm(ConfigFile, L"server");
-	  isOk = save(&sm);
-  }
-  else {
-	  RegistrySettingsManager sm(rootKey, RegistryPaths::SERVER_PATH, sa);
-	  isOk = save(&sm);
-  }
+  RegistrySettingsManager sm(rootKey, RegistryPaths::SERVER_PATH, sa);
+
+  isOk = save(&sm);
 
   return isOk;
 }
@@ -772,7 +751,7 @@ bool Configurator::loadServerConfig(SettingsManager *sm, ServerConfig *config)
 
   if (!sm->getBinaryData(_T("Password"), (void *)&buffer, &passSize)) {
     loadResult = false;
-    //m_serverConfig.deletePrimaryPassword();
+    m_serverConfig.deletePrimaryPassword();
   } else {
     m_isConfigLoadedPartly = true;
     m_serverConfig.setPrimaryPassword(&buffer[0]);
